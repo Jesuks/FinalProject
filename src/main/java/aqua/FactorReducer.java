@@ -1,0 +1,87 @@
+package aqua;
+
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs; // 引入 MultipleOutputs
+
+import java.io.IOException;
+
+public class FactorReducer extends Reducer<Text, Text, NullWritable, Text> {
+
+    // 定义多路输出对象
+    private MultipleOutputs<NullWritable, Text> mos;
+    // 记录上一次处理的日期，用于判断是否需要写表头
+    private String currentDay = "";
+
+    // 定义表头内容 (不包含 tradingDay)
+    private static final String HEADER;
+    static {
+        StringBuilder sb = new StringBuilder("tradeTime"); // 第一列改为 tradeTime
+        for (int i = 1; i <= 20; i++) {
+            sb.append(",alpha_").append(i);
+        }
+        HEADER = sb.toString();
+    }
+
+    @Override
+    protected void setup(Context context) throws IOException, InterruptedException {
+        // 初始化多路输出
+        mos = new MultipleOutputs<>(context);
+        // 注意：这里不再直接 context.write 表头，因为我们要把表头写到具体的子文件夹里
+    }
+
+    @Override
+    protected void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+        // Key 格式: "tradingDay,tradeTime" (例如 "20240102,093000")
+        String keyStr = key.toString();
+        String[] keyParts = keyStr.split(",");
+        String day = keyParts[0];      // 20240102
+        String time = keyParts[1];     // 093000
+
+        // --- 1. 动态写表头逻辑 (仅在日期切换时写入) ---
+        // 前提：Job设置了 setNumReduceTasks(1) 且数据已排序，所以同一天的数据是连续到达的
+        if (!day.equals(currentDay)) {
+            // 向该日期的文件夹写入表头
+            // generateFileName 格式: 目录名/文件前缀
+            // 结果: output/20240102/part-r-00000
+            mos.write(NullWritable.get(), new Text(HEADER), day + "/part");
+            currentDay = day;
+        }
+
+        // --- 2. 计算均值 ---
+        double[] sumFactors = new double[20];
+        int count = 0;
+
+        for (Text val : values) {
+            String[] parts = val.toString().split(",");
+            if (parts.length < 20) continue;
+            for (int i = 0; i < 20; i++) {
+                try {
+                    sumFactors[i] += Double.parseDouble(parts[i]);
+                } catch (NumberFormatException e) {}
+            }
+            count++;
+        }
+
+        // --- 3. 拼接结果 (不包含 tradingDay) ---
+        StringBuilder sb = new StringBuilder();
+        sb.append(time); // 第一列仅保留 tradeTime
+
+        for (int i = 0; i < 20; i++) {
+            double avg = (count > 0) ? (sumFactors[i] / count) : 0.0;
+            sb.append(",").append(String.format("%.6f", avg));
+        }
+
+        // --- 4. 输出到对应日期的文件夹 ---
+        // 这里的 path 指定为: day + "/part"
+        // Hadoop 会自动生成: baseOutput/20240102/part-r-00000
+        mos.write(NullWritable.get(), new Text(sb.toString()), day + "/part");
+    }
+
+    @Override
+    protected void cleanup(Context context) throws IOException, InterruptedException {
+        // 务必关闭 mos，否则数据可能丢失
+        mos.close();
+    }
+}
