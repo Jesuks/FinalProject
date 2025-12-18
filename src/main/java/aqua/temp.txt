@@ -9,7 +9,7 @@ import java.io.IOException;
 
 public class FactorReducer extends Reducer<Text, Text, NullWritable, Text> {
 
-//    private String lastDay = null;
+    private String lastDay = null;
     // 定义多路输出对象
     private MultipleOutputs<NullWritable, Text> mos;
     // 记录上一次处理的日期，用于判断是否需要写表头
@@ -41,9 +41,6 @@ public class FactorReducer extends Reducer<Text, Text, NullWritable, Text> {
         String day = keyParts[0];      // 20240102
         String time = keyParts[1];     // 093000
 
-        if (time.startsWith("0929")) {
-            return;
-        }
         // --- 1. 动态写表头逻辑 (仅在日期切换时写入) ---
         // 前提：Job设置了 setNumReduceTasks(1) 且数据已排序，所以同一天的数据是连续到达的
         if (!day.equals(currentDay)) {
@@ -51,8 +48,6 @@ public class FactorReducer extends Reducer<Text, Text, NullWritable, Text> {
             // generateFileName 格式: 目录名/文件前缀
             // 结果: output/20240102/part-r-00000
             mos.write(NullWritable.get(), new Text(HEADER), day + "/part");
-            // 写表头
-//            mos.write(NullWritable.get(), new Text(HEADER), day + ".csv");
             currentDay = day;
         }
 
@@ -84,7 +79,6 @@ public class FactorReducer extends Reducer<Text, Text, NullWritable, Text> {
         // 这里的 path 指定为: day + "/part"
         // Hadoop 会自动生成: baseOutput/20240102/part-r-00000
         mos.write(NullWritable.get(), new Text(sb.toString()), day + "/part");
-//        mos.write(NullWritable.get(), new Text(sb.toString()), day + ".csv");
     }
 
     @Override
