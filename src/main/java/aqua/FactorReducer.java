@@ -32,34 +32,35 @@ public class FactorReducer extends Reducer<Text, Text, NullWritable, Text> {
         // 注意：这里不再直接 context.write 表头，因为我们要把表头写到具体的子文件夹里
     }
 
+// ... 前面代码保持不变 ...
+
     @Override
     protected void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
-        // Key 格式: "tradingDay,tradeTime" (例如 "20240102,093000")
-
+        // Key 格式: "20240102,093000"
         String keyStr = key.toString();
         String[] keyParts = keyStr.split(",");
         String day = keyParts[0];      // 20240102
         String time = keyParts[1];     // 093000
 
+        // 提取 MMDD 格式 (例如 0102)
+        // 假设 day 总是 YYYYMMDD 格式
+        String fileName = day.length() >= 8 ? day.substring(4) : day;
+        String outputBase = fileName + ".csv"; // 目标文件名：0102.csv
+
         if (time.startsWith("0929")) {
             return;
         }
-        // --- 1. 动态写表头逻辑 (仅在日期切换时写入) ---
-        // 前提：Job设置了 setNumReduceTasks(1) 且数据已排序，所以同一天的数据是连续到达的
+
+        // --- 1. 动态写表头逻辑 ---
         if (!day.equals(currentDay)) {
-            // 向该日期的文件夹写入表头
-            // generateFileName 格式: 目录名/文件前缀
-            // 结果: output/20240102/part-r-00000
-            mos.write(NullWritable.get(), new Text(HEADER), day + "/part");
-            // 写表头
-//            mos.write(NullWritable.get(), new Text(HEADER), day + ".csv");
+            // 直接输出到 0102.csv-r-00000 这样的文件中
+            mos.write(NullWritable.get(), new Text(HEADER), outputBase);
             currentDay = day;
         }
 
-        // --- 2. 计算均值 ---
+        // --- 2. 计算均值 (保持不变) ---
         double[] sumFactors = new double[20];
         int count = 0;
-
         for (Text val : values) {
             String[] parts = val.toString().split(",");
             if (parts.length < 20) continue;
@@ -71,20 +72,18 @@ public class FactorReducer extends Reducer<Text, Text, NullWritable, Text> {
             count++;
         }
 
-        // --- 3. 拼接结果 (不包含 tradingDay) ---
+        // --- 3. 拼接结果 ---
         StringBuilder sb = new StringBuilder();
-        sb.append(time); // 第一列仅保留 tradeTime
-
+        sb.append(time);
         for (int i = 0; i < 20; i++) {
             double avg = (count > 0) ? (sumFactors[i] / count) : 0.0;
             sb.append(",").append(String.format("%.6f", avg));
         }
 
-        // --- 4. 输出到对应日期的文件夹 ---
-        // 这里的 path 指定为: day + "/part"
-        // Hadoop 会自动生成: baseOutput/20240102/part-r-00000
-        mos.write(NullWritable.get(), new Text(sb.toString()), day + "/part");
-//        mos.write(NullWritable.get(), new Text(sb.toString()), day + ".csv");
+        // --- 4. 修改输出位置 ---
+        // 移除 day + "/part"，改为使用 outputBase
+        // 结果路径: baseOutput/0102.csv-r-00000
+        mos.write(NullWritable.get(), new Text(sb.toString()), outputBase);
     }
 
     @Override
