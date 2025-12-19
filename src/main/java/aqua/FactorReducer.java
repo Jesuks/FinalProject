@@ -62,14 +62,26 @@ public class FactorReducer extends Reducer<Text, Text, NullWritable, Text> {
         double[] sumFactors = new double[20];
         int count = 0;
         for (Text val : values) {
-            String[] parts = val.toString().split(",");
-            if (parts.length < 20) continue;
-            for (int i = 0; i < 20; i++) {
-                try {
-                    sumFactors[i] += Double.parseDouble(parts[i]);
-                } catch (NumberFormatException e) {}
+            // 替代：String[] parts = val.toString().split(",");
+            String s = val.toString();
+            int idx = 0;
+            int col = 0;
+            int start = 0;
+
+            while (col < 20) {
+                idx = s.indexOf(',', start);
+                int end = (idx == -1) ? s.length() : idx;
+                if (start < end) {
+                    try {
+                        sumFactors[col] += Double.parseDouble(s.substring(start, end));
+                    } catch (NumberFormatException ignore) {}
+                }
+                col++;
+                if (idx == -1) break;
+                start = idx + 1;
             }
-            count++;
+            if (col == 20) count++;
+
         }
 
         // --- 3. 拼接结果 ---
