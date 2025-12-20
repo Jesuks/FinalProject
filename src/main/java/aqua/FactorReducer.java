@@ -47,9 +47,6 @@ public class FactorReducer extends Reducer<Text, Text, NullWritable, Text> {
         String fileName = day.length() >= 8 ? day.substring(4) : day;
         String outputBase = fileName + ".csv"; // 目标文件名：0102.csv
 
-        if (time.startsWith("0929")) {
-            return;
-        }
 
         // --- 1. 动态写表头逻辑 ---
         if (!day.equals(currentDay)) {

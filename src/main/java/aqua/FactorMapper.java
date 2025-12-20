@@ -35,11 +35,15 @@ public class FactorMapper extends Mapper<LongWritable, Text, Text, Text> {
         }
 
 // < 09:29:57 直接丢弃（不构造 Snapshot）
-        if (tradeTime <= 92957) return;
-
+        if (tradeTime < 92957) return;
         try {
             Snapshot currSnapshot = new Snapshot(line);
 
+            if (tradeTime == 92957) {
+                // 09:29:57 时刻，初始化 prevSnapshot 并跳过输出
+                prevSnapshot = currSnapshot;
+                return;
+            }
             String resultFactors = FactorCalculator.calculateAll(currSnapshot, prevSnapshot);
 
             // ===== 输出 key：tradingDay,HHMMSS=====
