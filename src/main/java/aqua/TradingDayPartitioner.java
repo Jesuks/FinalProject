@@ -3,10 +3,10 @@ package aqua;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Partitioner;
 
-public class TradingDayPartitioner extends Partitioner<Text, Text> {
+public class TradingDayPartitioner extends Partitioner<Text, FactorAggWritable> {
 
     @Override
-    public int getPartition(Text key, Text value, int numPartitions) {
+    public int getPartition(Text key, FactorAggWritable value, int numPartitions) {
         if (numPartitions <= 1) return 0;
 
         String s = key.toString();

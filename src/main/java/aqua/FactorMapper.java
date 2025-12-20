@@ -6,11 +6,11 @@ import org.apache.hadoop.mapreduce.Mapper;
 
 import java.io.IOException;
 
-public class FactorMapper extends Mapper<LongWritable, Text, Text, Text> {
+public class FactorMapper extends Mapper<LongWritable, Text, Text, FactorAggWritable> {
 
     private Snapshot prevSnapshot = null;
     private Text outKey = new Text();
-    private Text outVal = new Text();
+    private FactorAggWritable outVal = new FactorAggWritable();
 
     private final StringBuilder keyBuilder = new StringBuilder(32);
 
@@ -53,7 +53,7 @@ public class FactorMapper extends Mapper<LongWritable, Text, Text, Text> {
             appendPadded6(keyBuilder, tradeTime);
 
             outKey.set(keyBuilder.toString());
-            outVal.set(resultFactors);
+            outVal.setFromCsv20(resultFactors);
             context.write(outKey, outVal);
 
             // 更新缓存

@@ -62,27 +62,21 @@ public class CalcDriver {
         autoTune(conf);
         conf.setBoolean("mapreduce.input.fileinputformat.input.dir.recursive", true);
 
-//        // ====== 保持你原来的优化配置不变 ======
-//        int cores = Runtime.getRuntime().availableProcessors();
-//        conf.setInt("mapreduce.local.map.tasks.maximum", cores);
-//        conf.setInt("mapreduce.local.reduce.tasks.maximum", Math.max(1, cores / 2));
-//
-//        conf.setBoolean("mapreduce.map.output.compress", true);
-//        conf.set("mapreduce.map.output.compress.codec", "org.apache.hadoop.io.compress.SnappyCodec");
-//        conf.setInt("mapreduce.task.io.sort.mb", 256);
-//        conf.setInt("mapreduce.task.io.sort.factor", 100);
+        conf.setBoolean("mapreduce.map.output.compress", true);
+        conf.set("mapreduce.map.output.compress.codec", "org.apache.hadoop.io.compress.SnappyCodec");
 
         Job job = Job.getInstance(conf, "Stock Factor Calculation");
         job.setJarByClass(CalcDriver.class);
 
         job.setMapperClass(FactorMapper.class);
         job.setReducerClass(FactorReducer.class);
+        job.setCombinerClass(FactorCombiner.class); // ★新增
 
         job.setPartitionerClass(TradingDayPartitioner.class);
         job.setNumReduceTasks(conf.getInt("aqua.reducers", 1));
 
         job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(Text.class);
+        job.setMapOutputValueClass(FactorAggWritable.class); // ★改这里
 
         job.setOutputKeyClass(NullWritable.class);
         job.setOutputValueClass(Text.class);

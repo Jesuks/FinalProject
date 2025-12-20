@@ -7,7 +7,7 @@ import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs; // 引入 Multipl
 
 import java.io.IOException;
 
-public class FactorReducer extends Reducer<Text, Text, NullWritable, Text> {
+public class FactorReducer extends Reducer<Text, FactorAggWritable, NullWritable, Text> {
 
 //    private String lastDay = null;
     // 定义多路输出对象
@@ -35,7 +35,7 @@ public class FactorReducer extends Reducer<Text, Text, NullWritable, Text> {
 // ... 前面代码保持不变 ...
 
     @Override
-    protected void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+    protected void reduce(Text key, Iterable<FactorAggWritable> values, Context context) throws IOException, InterruptedException {
         // Key 格式: "20240102,093000"
         String keyStr = key.toString();
         String[] keyParts = keyStr.split(",");
@@ -57,35 +57,21 @@ public class FactorReducer extends Reducer<Text, Text, NullWritable, Text> {
 
         // --- 2. 计算均值 (保持不变) ---
         double[] sumFactors = new double[20];
-        int count = 0;
-        for (Text val : values) {
-            // 替代：String[] parts = val.toString().split(",");
-            String s = val.toString();
-            int idx = 0;
-            int col = 0;
-            int start = 0;
+        long count = 0;
 
-            while (col < 20) {
-                idx = s.indexOf(',', start);
-                int end = (idx == -1) ? s.length() : idx;
-                if (start < end) {
-                    try {
-                        sumFactors[col] += Double.parseDouble(s.substring(start, end));
-                    } catch (NumberFormatException ignore) {}
-                }
-                col++;
-                if (idx == -1) break;
-                start = idx + 1;
+        for (FactorAggWritable v : values) {
+            double[] s = v.sum(); // FactorAggWritable 里存的 20 个 sum
+            for (int i = 0; i < 20; i++) {
+                sumFactors[i] += s[i];
             }
-            if (col == 20) count++;
-
+            count += v.count();   // combiner 合并后 count 可能 > 1
         }
 
         // --- 3. 拼接结果 ---
         StringBuilder sb = new StringBuilder();
         sb.append(time);
         for (int i = 0; i < 20; i++) {
-            double avg = (count > 0) ? (sumFactors[i] / count) : 0.0;
+            double avg = (count > 0) ? (sumFactors[i] / (double) count) : 0.0;
             sb.append(",").append(String.format("%.6f", avg));
         }
 
