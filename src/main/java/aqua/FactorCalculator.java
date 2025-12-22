@@ -4,8 +4,7 @@ public class FactorCalculator {
     private static final int N = 5;
     private static final double EPSILON = 1e-7;
 
-    public static String calculateAll(Snapshot curr, Snapshot prev) {
-        double[] factors = new double[20];
+    public static void calculateAll(Snapshot curr, Snapshot prev, double[] factors) {
 
         // --- 1. 将 long 转为 double 进行计算 ---
         double bp1 = (double) curr.bp[0];
@@ -111,11 +110,10 @@ public class FactorCalculator {
         factors[19] = (ap1 - bp1) / (sumBvN + sumAvN + EPSILON);
 
         // 拼接返回
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < factors.length; i++) {
-            sb.append(factors[i]);
-            if (i < factors.length - 1) sb.append(",");
-        }
-        return sb.toString();
+//        StringBuilder sb = new StringBuilder();
+//        for (int i = 0; i < factors.length; i++) {
+//            sb.append(factors[i]);
+//            if (i < factors.length - 1) sb.append(",");
+//        }
     }
 }

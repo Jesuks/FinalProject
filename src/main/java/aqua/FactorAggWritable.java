@@ -62,4 +62,10 @@ public class FactorAggWritable implements Writable {
         count = in.readLong();
         for (int i = 0; i < N; i++) sum[i] = in.readDouble();
     }
+
+    public void setFromDoubles(double[] factors20) {
+        // factors20.length == 20
+        count = 1L;
+        System.arraycopy(factors20, 0, sum, 0, N);
+    }
 }

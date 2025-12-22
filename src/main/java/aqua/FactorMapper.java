@@ -16,9 +16,18 @@ public class FactorMapper extends Mapper<LongWritable, Text, Text, FactorAggWrit
 
     // 09:29:57
     private static final int CUTOFF = 92957;
+    private final double[] factorsBuf = new double[20];
+    private long lastOffset = -1L;
 
     @Override
     protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+        long off = key.get();
+        if (off == 0L && lastOffset > 0L) {
+            // 新文件开始
+            prevSnapshot = null;
+        }
+        lastOffset = off;
+
         String line = value.toString();
         // 过滤非数据行
         if (line.startsWith("tradingDay")) return;
@@ -44,8 +53,7 @@ public class FactorMapper extends Mapper<LongWritable, Text, Text, FactorAggWrit
                 prevSnapshot = currSnapshot;
                 return;
             }
-            String resultFactors = FactorCalculator.calculateAll(currSnapshot, prevSnapshot);
-
+            FactorCalculator.calculateAll(currSnapshot, prevSnapshot, factorsBuf);
             // ===== 输出 key：tradingDay,HHMMSS=====
             keyBuilder.setLength(0);
             // tradingDay 就是第一列：直接从原行 append(0,c1)，避免 substring 新建 String
@@ -53,7 +61,7 @@ public class FactorMapper extends Mapper<LongWritable, Text, Text, FactorAggWrit
             appendPadded6(keyBuilder, tradeTime);
 
             outKey.set(keyBuilder.toString());
-            outVal.setFromCsv20(resultFactors);
+            outVal.setFromDoubles(factorsBuf);
             context.write(outKey, outVal);
 
             // 更新缓存
